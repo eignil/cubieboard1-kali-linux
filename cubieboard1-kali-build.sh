@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ $# -eq 0 ]] ; then
-    echo "Please pass version number, e.g. $0 2.0 /dev/sdc"
+    echo "Please pass version number, e.g. $0 2.0"
     exit 0
 fi
 #image version
@@ -40,43 +40,6 @@ gcctool=gcc-linaro-7.1.1-2017.08-x86_64_arm-linux-gnueabihf
 gccdir=${basedir}/${gcctool}
 uBootdir=${downloaddir}/u-boot
 linuxsunxidir=${downloaddir}/linux-sunxi
-
-
-function download_files(){
-  echo "Start download files"
-  cd ${downloaddir}
-  #download kali-archive-keyring
-  if [ ! -f ${downloaddir}/kali-archive-keyring_2015.2_all.deb ];then
-  wget -P ${downloaddir} http://repo.kali.org/kali/pool/main/k/kali-archive-keyring/kali-archive-keyring_2015.2_all.deb
-  fi
-  #get kali debootstrap
-  git clone --depth 1 git://git.kali.org/packages/debootstrap.git kali-debootstrap
-  #use kali's debootstrap， but need to mask the setup_devices for new debootstrap
-  #This may change in new version, only for current state.
-  sed -i '77 s/setup_devices/# setup_devices/g'  ${downloaddir}/kali-debootstrap/scripts/kali
-
-  #kali arm linux script
-  cd ${downloaddir}
-  git clone https://github.com/offensive-security/kali-arm-build-scripts
-
-  #linaro gcc tool
-  if [ ! -f ${downloaddir}/${gcctool}.tar.xz ];then
-  wget https://releases.linaro.org/components/toolchain/binaries/7.1-2017.08/arm-linux-gnueabihf/${gcctool}.tar.xz
-  tar -Jxvf ${gcctool}.tar.xz -C ${basedir}
-  fi
-  #get u-boot
-  #mainline
-  git clone git://git.denx.de/u-boot.git --depth=1
-  cd ${uBootdir}
-  git checkout v2017.05
-
-  #get linux-sunxi
-  #mainline
-  cd ${downloaddir}
-  git clone https://github.com/linux-sunxi/linux-sunxi.git -b sunxi-next --depth=1
-
-  echo "All downloading finished..."
-}
 
 function prepare_env(){
   cd ${basedir}
@@ -117,6 +80,45 @@ function prepare_env(){
 
   packages="${arm} ${base} ${desktop} ${tools} ${services} ${extras}"
 }
+prepare_env
+
+function download_files(){
+  echo "Start download files"
+  cd ${downloaddir}
+  #download kali-archive-keyring
+  if [ ! -f ${downloaddir}/kali-archive-keyring_2015.2_all.deb ];then
+  wget -P ${downloaddir} http://repo.kali.org/kali/pool/main/k/kali-archive-keyring/kali-archive-keyring_2015.2_all.deb
+  fi
+  #get kali debootstrap
+  git clone --depth 1 git://git.kali.org/packages/debootstrap.git kali-debootstrap
+  #use kali's debootstrap， but need to mask the setup_devices for new debootstrap
+  #This may change in new version, only for current state.
+  sed -i '77 s/setup_devices/# setup_devices/g'  ${downloaddir}/kali-debootstrap/scripts/kali
+
+  #kali arm linux script
+  cd ${downloaddir}
+  git clone https://github.com/offensive-security/kali-arm-build-scripts
+
+  #linaro gcc tool
+  if [ ! -f ${downloaddir}/${gcctool}.tar.xz ];then
+  wget https://releases.linaro.org/components/toolchain/binaries/7.1-2017.08/arm-linux-gnueabihf/${gcctool}.tar.xz
+  tar -Jxvf ${gcctool}.tar.xz -C ${basedir}
+  fi
+  #get u-boot
+  #mainline
+  git clone git://git.denx.de/u-boot.git --depth=1
+  cd ${uBootdir}
+  git checkout v2017.05
+
+  #get linux-sunxi
+  #mainline
+  cd ${downloaddir}
+  git clone https://github.com/linux-sunxi/linux-sunxi.git -b sunxi-next --depth=1
+
+  echo "All downloading finished..."
+}
+
+
 function kali_rootfs_stage1(){
   # Set this to use an http proxy, like apt-cacher-ng, and uncomment further down
   # to unset it.
@@ -332,6 +334,8 @@ function create_sd_image(){
   dd if=./u-boot-sunxi-with-spl.bin of=${device} bs=1024 seek=8
   cp ./sun4i-a10-cubieboard.dtb  ./bootp
   cp ./zImage  ./bootp
+  cp ./boot.cmd ./bootp
+  cp ./boot.scr ./bootp
   echo "Rsyncing rootfs to image file"
   rsync -HPavz -q ${basedir}/kali-$architecture/ ./rootp/
   cp -rf ./lib/modules/* ./rootp/lib/modules/*
@@ -342,7 +346,6 @@ function create_sd_image(){
   rm -rf  rootp
 }
 download_files
-prepare_env
 kali_rootfs_stage1
 kali_rootfs_stage2
 kali_rootfs_stage3
