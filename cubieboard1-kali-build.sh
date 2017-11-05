@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ $# -eq 0 ]] ; then
-    echo "Please pass version number, e.g. $0 2.0"
+    echo "Please pass version number, e.g. $0 2.0 /dev/sdc"
     exit 0
 fi
 #image version
